@@ -55,7 +55,7 @@ class GimbalDriver(Node):
         super().__init__("gimbal_driver")
 
         # Declare parameters with default values
-        self.declare_parameter('baudrate', 57600)
+        self.declare_parameter('baudrate', 3000000)
         self.declare_parameter('device_name', '/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FT6Z5UZP-if00-port0')
         self.declare_parameter('start_pos', [0.0, 0.0])
         self.declare_parameter('min_position_deg', [-100.0, -100.0])
