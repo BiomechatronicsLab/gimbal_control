@@ -1,5 +1,5 @@
 baudrate: 3000000
-device_name: "/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FT6Z5UZP-if00-port0"
+device_name: "/dev/serial/by-id/usb-FTDI_USB__-__Serial_Converter_FT3R45P2-if00-port0"
 start_pos: [0.0, 0.0]
 min_position_deg: [-100.0, -100.0]
 max_position_deg: [100.0, 100.0]
