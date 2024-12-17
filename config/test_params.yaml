@@ -6,4 +6,6 @@ max_position_deg: [100.0, 100.0]
 kP: 500
 kI: 0
 kD: 200
+joint_feedback_topic: /dom/end_eff/dynamixel_joint_states
+joint_command_topic: /dom/end_eff/command_joint_states
 dynamixel_type: "XL430-W250"
