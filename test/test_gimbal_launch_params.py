@@ -47,9 +47,15 @@ class ParameterChecker(Node):
         self.req = GetParameters.Request()
 
     def wait_for_service_ready(self):
-        # This method ensures that the service is available before calling it
-        while not self.client.wait_for_service(timeout_sec=5.0):
-            self.get_logger().info('Service not available, waiting again...')
+        timeout = 5.0  # Total timeout in seconds
+        start_time = time.time()
+
+        while not self.client.wait_for_service(timeout_sec=1.0):
+            self.get_logger().warn('Service not available, retrying...')
+            if time.time() - start_time > timeout:
+                self.get_logger().error(f"Service {self.client.srv_name} not available after {timeout} seconds.")
+                raise TimeoutError("Service connection timed out.")
+
         self.get_logger().info('Service is available now.')
 
     # When using the GetParameters service, if you return an ENTIRE array 
@@ -61,13 +67,13 @@ class ParameterChecker(Node):
         self.wait_for_service_ready()
         self.req.names = param_to_check
         self.future = self.client.call_async(self.req)
-        rclpy.spin_until_future_complete(self, self.future)
+        rclpy.spin_until_future_complete(self, self.future, timeout_sec=0.1)
         return self.future.result().values
 
 @pytest.fixture(autouse=True, scope="session")
 def initialize_rclpy():
     # Set an arbitrary ROS_DOMAIN_ID so that the test is performed without inteference
-    os.environ["ROS_DOMAIN_ID"] = "42"
+    os.environ['ROS_DOMAIN_ID'] = '42'
 
     rclpy.init()
     yield

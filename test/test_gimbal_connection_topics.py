@@ -23,7 +23,7 @@ class TopicChecker(Node):
 @pytest.fixture(autouse=True, scope="session")
 def initialize_rclpy():
     # Set an arbitrary ROS_DOMAIN_ID so that the test is performed without inteference
-    os.environ["ROS_DOMAIN_ID"] = "42"
+    os.environ['ROS_DOMAIN_ID'] = '42'
 
     rclpy.init()
     yield
@@ -31,6 +31,10 @@ def initialize_rclpy():
 
 @launch_pytest.fixture
 def launch_gimbal_ros2_node(config_params):
+
+    # Set an arbitrary ROS_DOMAIN_ID so that the test is performed without inteference
+    os.environ['ROS_DOMAIN_ID'] = '42'
+
     return LaunchDescription(
         [
             launch_ros.actions.Node(

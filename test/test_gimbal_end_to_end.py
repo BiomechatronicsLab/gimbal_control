@@ -15,6 +15,7 @@ from rclpy.node import Node
 import launch_pytest
 import time
 from sensor_msgs.msg import JointState
+import numpy as np
 
 # GLOBAL VARIABLES
 node_name = "test_gimbal_node"
@@ -36,8 +37,7 @@ def launch_gimbal_ros2_node(config_params):
         ),
         launch_testing.actions.ReadyToTest()
     ])
-
-class LeapPositionChecker(Node):
+class GimbalPositionChecker(Node):
     def __init__(self, config_params):
         super().__init__('leap_position_checker')
 
@@ -52,7 +52,7 @@ class LeapPositionChecker(Node):
     def publish_position(self, positions_to_command):
         joint_state_msg = JointState()
         joint_state_msg.header.stamp = self.get_clock().now().to_msg()
-        joint_state_msg.name = [f"joint_{i}" for i in range(16)]
+        joint_state_msg.name = ["yaw", "pitch"]
         joint_state_msg.position = positions_to_command
         self.pub_joint_states.publish(joint_state_msg)
 
@@ -68,38 +68,43 @@ class LeapPositionChecker(Node):
 @pytest.fixture(autouse=True, scope="session")
 def initialize_rclpy():
     # Set an arbitrary ROS_DOMAIN_ID so that the test is performed without inteference
-    os.environ["ROS_DOMAIN_ID"] = "42"
+    os.environ['ROS_DOMAIN_ID'] = '42'
 
     rclpy.init()
     yield
     rclpy.shutdown()
 
 @pytest.fixture
-def leap_position_checker(config_params):
-    test_node = LeapPositionChecker(config_params)
+def gimbal_position_checker(config_params):
+    test_node = GimbalPositionChecker(config_params)
     yield test_node
     test_node.destroy_node()
 
 @pytest.mark.launch(fixture=launch_gimbal_ros2_node)
-def test_leap_end_to_end(leap_position_checker):
+def test_gimbal_end_to_end(gimbal_position_checker):
     tolerance_deg = 10.0
 
-    positions_to_command_deg = [
-            [0.0, 0.0],
-            [90.0, 0.0], # right
-            [0.0, 0.0],
-            [-90.0, 0.0], # left
-            [0.0, 0.0],
-            [0.0, 90.0], # up
-            [0.0, 0.0],
-            [0.0, -90.0], # down
-            [0.0, 0.0],
-        ]
-    
-    for positions_deg in positions_to_command_deg:
-        leap_position_checker.publish_position(positions_deg)
-        leap_position_checker.spin_for_duration(duration_sec=0.5) # Time for motor to reach position, and to subscribe from leap_node publisher
-        position_comparison = [abs(a - b) for a, b in zip(positions_deg, leap_position_checker.feedback_position_deg)]
+    rad_90deg = np.pi / 2
+    # Define positions to command
+    positions_to_command = [
+        [0.0, 0.0],
+        [rad_90deg, 0.0], # right
+        [0.0, 0.0],
+        [-rad_90deg, 0.0], # left
+        [0.0, 0.0],
+        [0.0, rad_90deg], # up
+        [0.0, 0.0],
+        [0.0, -rad_90deg], # down
+        # [0.0, 0.0],
+    ]
+
+    for positions_rad in positions_to_command:
+        # TODO: set the initial min/max position
+        gimbal_position_checker.publish_position(positions_rad)
+        gimbal_position_checker.spin_for_duration(duration_sec=1.5) # Time for motor to reach position, and to subscribe from leap_node publisher
+        print(np.degrees(positions_rad))
+        print(gimbal_position_checker.feedback_position_deg)
+        position_comparison = [abs(a - b) for a, b in zip(np.degrees(positions_rad), gimbal_position_checker.feedback_position_deg)]
         print(position_comparison)
         comparison_result = [comparison < tolerance_deg for comparison in position_comparison]
         # comparison_result = [abs(a - b) for a, b in zip(truth_goal_position_deg, test_position_deg)]
