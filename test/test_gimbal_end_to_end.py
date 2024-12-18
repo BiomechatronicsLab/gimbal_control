@@ -95,7 +95,7 @@ def test_gimbal_end_to_end(gimbal_position_checker):
         [0.0, rad_90deg], # up
         [0.0, 0.0],
         [0.0, -rad_90deg], # down
-        # [0.0, 0.0],
+        [0.0, 0.0],
     ]
 
     for positions_rad in positions_to_command:

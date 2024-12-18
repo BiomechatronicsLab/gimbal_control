@@ -57,6 +57,7 @@ if(BUILD_TESTING)
     test/test_u2d2_connection.py
     test/test_motor_connection.py
     test/test_gimbal_registers.py
+    test/test_gimbal_node_driver.py
     test/test_gimbal_connection_topics.py
     test/test_gimbal_launch_params.py
     test/test_gimbal_end_to_end.py

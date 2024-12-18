@@ -67,7 +67,7 @@ def gimbal_ros2_node():
     yield gimbal_ros2_node
     gimbal_ros2_node.destroy_node()
 
-def run_leap_node_thread(executor):
+def run_gimbal_node_thread(executor):
     """Spin the given node for the specified duration in seconds."""
     global stop_threads
     global pause_threads
@@ -113,7 +113,6 @@ def set_new_params(config_params, param_names_to_check):
         params_to_set.append(new_param)
     return params_to_set
 
-
 def test_gimbal_node_gain_values(gimbal_ros2_node, parameter_setter, config_params):
     global stop_threads, pause_threads
     stop_threads = False
@@ -121,7 +120,7 @@ def test_gimbal_node_gain_values(gimbal_ros2_node, parameter_setter, config_para
 
     executor_gimbal_ros2_node = MultiThreadedExecutor()
     executor_gimbal_ros2_node.add_node(gimbal_ros2_node)
-    thread1 = threading.Thread(target=run_leap_node_thread, args=(executor_gimbal_ros2_node,))
+    thread1 = threading.Thread(target=run_gimbal_node_thread, args=(executor_gimbal_ros2_node,))
     thread1.start()
 
     executor_sub_and_client = MultiThreadedExecutor()
@@ -178,7 +177,7 @@ def test_gimbal_node_start_position(gimbal_ros2_node, parameter_setter, config_p
 
     executor_gimbal_ros2_node = MultiThreadedExecutor()
     executor_gimbal_ros2_node.add_node(gimbal_ros2_node)
-    thread1 = threading.Thread(target=run_leap_node_thread, args=(executor_gimbal_ros2_node,))
+    thread1 = threading.Thread(target=run_gimbal_node_thread, args=(executor_gimbal_ros2_node,))
     thread1.start()
 
     executor_sub_and_client = MultiThreadedExecutor()
@@ -189,8 +188,8 @@ def test_gimbal_node_start_position(gimbal_ros2_node, parameter_setter, config_p
     config_params["start_pos_deg"] = truth_start_pos_deg
 
     # Technically relies params set by the min / max for the maximum and minimum position limits... 
-    config_params["min_position_deg"] = [-100, -100]
-    config_params["max_position_deg"] = [100, 100]
+    config_params["min_position_deg"] = [-90.0, -90.0]
+    config_params["max_position_deg"] = [90.0, 90.0]
 
     param_names_to_check = list(config_params.keys())
     params_to_set = set_new_params(config_params, param_names_to_check)
@@ -226,7 +225,6 @@ def test_gimbal_node_start_position(gimbal_ros2_node, parameter_setter, config_p
     # have to convert to ints because thats how it is actually sent to the dynamixels
     assert all(comparison_result)
 
-
 def test_gimbal_node_min_position(gimbal_ros2_node, parameter_setter, config_params):
     global stop_threads, pause_threads
     stop_threads = False
@@ -234,14 +232,14 @@ def test_gimbal_node_min_position(gimbal_ros2_node, parameter_setter, config_par
 
     executor_gimbal_ros2_node = MultiThreadedExecutor()
     executor_gimbal_ros2_node.add_node(gimbal_ros2_node)
-    thread1 = threading.Thread(target=run_leap_node_thread, args=(executor_gimbal_ros2_node,))
+    thread1 = threading.Thread(target=run_gimbal_node_thread, args=(executor_gimbal_ros2_node,))
     thread1.start()
 
     executor_sub_and_client = MultiThreadedExecutor()
     executor_sub_and_client.add_node(parameter_setter)
 
     # set the initial conditions that you want (parameters must be a DOUBLE array)
-    truth_min_pos_deg = [-110, -105] 
+    truth_min_pos_deg = [-115.0, -105.0] 
     config_params["min_position_deg"] = truth_min_pos_deg
 
     param_names_to_check = list(config_params.keys())
@@ -260,14 +258,14 @@ def test_gimbal_node_min_position(gimbal_ros2_node, parameter_setter, config_par
     # Pause the leap_node from running so that I can check the actual driver information
     pause_threads = True
     time.sleep(1.0)
-    test_start_pos_deg = gimbal_ros2_node.dynamixel_mgr.get_min_position_deg(gimbal_ros2_node.dynamixel_mgr.motor_ids)
+    test_min_pos_deg = gimbal_ros2_node.dynamixel_mgr.get_min_position_deg(gimbal_ros2_node.dynamixel_mgr.motor_ids)
 
     # Stop the thread prior to assertion
     stop_threads = True
     time.sleep(1.0)
 
     # Now actually check without the node
-    position_comparison = [abs(a - b) for a, b in zip(truth_min_pos_deg, test_start_pos_deg)]
+    position_comparison = [abs(a - b) for a, b in zip(truth_min_pos_deg, test_min_pos_deg)]
     print(position_comparison)
 
     # should not really even have a tolerance, just floating point accuracy
@@ -276,6 +274,7 @@ def test_gimbal_node_min_position(gimbal_ros2_node, parameter_setter, config_par
     # have to convert to ints because thats how it is actually sent to the dynamixels
     assert all(comparison_result)
 
+
 def test_gimbal_node_max_position(gimbal_ros2_node, parameter_setter, config_params):
     global stop_threads, pause_threads
     stop_threads = False
@@ -283,7 +282,7 @@ def test_gimbal_node_max_position(gimbal_ros2_node, parameter_setter, config_par
 
     executor_gimbal_ros2_node = MultiThreadedExecutor()
     executor_gimbal_ros2_node.add_node(gimbal_ros2_node)
-    thread1 = threading.Thread(target=run_leap_node_thread, args=(executor_gimbal_ros2_node,))
+    thread1 = threading.Thread(target=run_gimbal_node_thread, args=(executor_gimbal_ros2_node,))
     thread1.start()
 
     executor_sub_and_client = MultiThreadedExecutor()
@@ -309,14 +308,15 @@ def test_gimbal_node_max_position(gimbal_ros2_node, parameter_setter, config_par
     # Pause the leap_node from running so that I can check the actual driver information
     pause_threads = True
     time.sleep(1.0)
-    test_start_pos_deg = gimbal_ros2_node.dynamixel_mgr.get_max_position_deg(gimbal_ros2_node.dynamixel_mgr.motor_ids)
+    test_max_pos_deg = gimbal_ros2_node.dynamixel_mgr.get_max_position_deg(gimbal_ros2_node.dynamixel_mgr.motor_ids)
+    print(f'test_max_pos_deg: {test_max_pos_deg}')
 
     # Stop the thread prior to assertion
     stop_threads = True
     time.sleep(1.0)
 
     # Now actually check without the node
-    position_comparison = [abs(a - b) for a, b in zip(truth_max_pos_deg, test_start_pos_deg)]
+    position_comparison = [abs(a - b) for a, b in zip(truth_max_pos_deg, test_max_pos_deg)]
     print(position_comparison)
 
     # should not really even have a tolerance, just floating point accuracy
@@ -332,7 +332,7 @@ def test_gimbal_node_no_device_name(gimbal_ros2_node, parameter_setter, config_p
 
     executor_gimbal_ros2_node = MultiThreadedExecutor()
     executor_gimbal_ros2_node.add_node(gimbal_ros2_node)
-    thread1 = threading.Thread(target=run_leap_node_thread, args=(executor_gimbal_ros2_node,))
+    thread1 = threading.Thread(target=run_gimbal_node_thread, args=(executor_gimbal_ros2_node,))
     thread1.start()
 
     executor_sub_and_client = MultiThreadedExecutor()
@@ -372,7 +372,7 @@ def test_gimbal_node_no_dynamixel_type(gimbal_ros2_node, parameter_setter, confi
 
     executor_gimbal_ros2_node = MultiThreadedExecutor()
     executor_gimbal_ros2_node.add_node(gimbal_ros2_node)
-    thread1 = threading.Thread(target=run_leap_node_thread, args=(executor_gimbal_ros2_node,))
+    thread1 = threading.Thread(target=run_gimbal_node_thread, args=(executor_gimbal_ros2_node,))
     thread1.start()
 
     executor_sub_and_client = MultiThreadedExecutor()
