@@ -14,7 +14,7 @@ class GimbalNode(Node):
     def __init__(self, test_flag=False):
         super().__init__("gimbal_node")
         # Declare parameters with default values
-        self.declare_parameter("joint_command_topic", "/gimbal/peripheral/command_joint_states" )
+        self.declare_parameter("joint_command_topic", "/gimbal/peripheral/feedback_joint_states" )
         self.declare_parameter("joint_feedback_topic", "/gimbal/peripheral/dynamixel_joint_states")
         self.declare_parameter('baud_rate', 3000000)
         self.declare_parameter('device_name', "")
