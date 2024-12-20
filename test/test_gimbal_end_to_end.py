@@ -81,7 +81,7 @@ def gimbal_position_checker(config_params):
     test_node.destroy_node()
 
 @pytest.mark.launch(fixture=launch_gimbal_ros2_node)
-def test_gimbal_end_to_end(gimbal_position_checker):
+def test_gimbal_end_to_end_position(gimbal_position_checker):
     tolerance_deg = 10.0
 
     rad_90deg = np.pi / 2
