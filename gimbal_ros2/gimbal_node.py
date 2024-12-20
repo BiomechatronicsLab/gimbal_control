@@ -11,8 +11,8 @@ import time
 POSITION_MODE_ENUM = 3
 
 class GimbalNode(Node):
-    def __init__(self, test_flag=False):
-        super().__init__("gimbal_node")
+    def __init__(self, test_flag=False, node_name="gimbal_node"):
+        super().__init__(node_name)
         # Declare parameters with default values
         self.declare_parameter("joint_command_topic", "/gimbal/peripheral/feedback_joint_states" )
         self.declare_parameter("joint_feedback_topic", "/gimbal/peripheral/dynamixel_joint_states")
@@ -25,7 +25,8 @@ class GimbalNode(Node):
         self.declare_parameter('kI', 0)
         self.declare_parameter('kD', 200)
         self.declare_parameter('start_pos_deg', [0.0, 0.0])
-
+        self.dynamixel_mgr = None 
+        
         if not test_flag:
             self.setup()
 

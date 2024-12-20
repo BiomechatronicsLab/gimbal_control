@@ -17,10 +17,11 @@ import numpy as np
 stop_threads = False
 pause_threads = False
 
+node_name = "test_gimbal_node" 
 class ParameterSetter(Node):
     def __init__(self):
         super().__init__('parameter_setter')
-        node_name = "gimbal_node" # hardcoded in the ROS2 class
+        
         self.client = self.create_client(
             SetParameters,
             f'/{node_name}/set_parameters'
@@ -63,7 +64,7 @@ def parameter_setter():
 
 @pytest.fixture
 def gimbal_ros2_node():
-    gimbal_ros2_node = GimbalNode(test_flag = True)
+    gimbal_ros2_node = GimbalNode(test_flag=True, node_name="gimbal_node")
     yield gimbal_ros2_node
     gimbal_ros2_node.destroy_node()
 
