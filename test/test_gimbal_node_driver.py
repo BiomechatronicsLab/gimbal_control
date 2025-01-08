@@ -9,13 +9,11 @@ import rclpy
 from rcl_interfaces.srv import SetParameters
 from rcl_interfaces.msg import Parameter, ParameterValue, SetParametersResult
 from gimbal_ros2.gimbal_node import GimbalNode
-from rcl_interfaces.msg import ParameterType
-from rclpy.executors import MultiThreadedExecutor
-import threading
-import numpy as np
+from gimbal_ros2.suspendable_thread import SuspendableThread
 
-stop_threads = False
-pause_threads = False
+from rcl_interfaces.msg import ParameterType
+from rclpy.executors import SingleThreadedExecutor
+import numpy as np
 
 node_name = "test_gimbal_node" 
 class ParameterSetter(Node):
@@ -63,28 +61,27 @@ def parameter_setter():
     parameter_setter.destroy_node()
 
 @pytest.fixture
-def gimbal_ros2_node():
-    gimbal_ros2_node = GimbalNode(test_flag=True, node_name="gimbal_node")
-    yield gimbal_ros2_node
-    gimbal_ros2_node.destroy_node()
+def gimbal_ros2_node_and_thread():
+    gimbal_ros2_node = GimbalNode(test_flag=True, node_name=node_name)
+    executor = SingleThreadedExecutor()
+    executor.add_node(gimbal_ros2_node)
+    suspendable_thread = SuspendableThread(target=spin_node, args=(executor, ))
+    suspendable_thread.start()
 
-def run_gimbal_node_thread(executor):
-    """Spin the given node for the specified duration in seconds."""
-    global stop_threads
-    global pause_threads
-    while True:
-        if stop_threads:
-            break
-        elif pause_threads:
-            pass
-        else:             
-            executor.spin_once(timeout_sec=0.1)
+    yield gimbal_ros2_node, suspendable_thread
+
+    executor.shutdown()
+    gimbal_ros2_node.destroy_node()
+    suspendable_thread.kill()
 
 def spin_for_duration(executor, duration_sec):
     """Spin the given node for the specified duration in seconds."""
     start_time = time.time()
     while time.time() - start_time < duration_sec:
-        executor.spin_once(timeout_sec=0.1)  # Adjust timeout_sec for finer granularity if needed
+        spin_node(executor)  # Adjust timeout_sec for finer granularity if needed
+
+def spin_node(executor):
+    executor.spin_once(timeout_sec=0.01)
 
 def set_new_params(config_params, param_names_to_check):
     params_to_set = [] # array of "sudo launch file params"
@@ -114,18 +111,12 @@ def set_new_params(config_params, param_names_to_check):
         params_to_set.append(new_param)
     return params_to_set
 
-def test_gimbal_node_gain_values(gimbal_ros2_node, parameter_setter, config_params):
-    global stop_threads, pause_threads
-    stop_threads = False
-    pause_threads = False
+def test_gimbal_node_gain_values(gimbal_ros2_node_and_thread, parameter_setter, config_params):
 
-    executor_gimbal_ros2_node = MultiThreadedExecutor()
-    executor_gimbal_ros2_node.add_node(gimbal_ros2_node)
-    thread1 = threading.Thread(target=run_gimbal_node_thread, args=(executor_gimbal_ros2_node,))
-    thread1.start()
+    gimbal_ros2_node, suspendable_thread = gimbal_ros2_node_and_thread
 
-    executor_sub_and_client = MultiThreadedExecutor()
-    executor_sub_and_client.add_node(parameter_setter)
+    executor_test = SingleThreadedExecutor()
+    executor_test.add_node(parameter_setter)
 
     # set the params you want
     kP = 300
@@ -143,7 +134,7 @@ def test_gimbal_node_gain_values(gimbal_ros2_node, parameter_setter, config_para
     set_parameter_results = parameter_setter.send_request(SetParameters.Request(parameters=params_to_set))
 
     # Spin subscriber and service to actually execute the service call
-    spin_for_duration(executor_sub_and_client, 1.0)
+    spin_for_duration(executor_test, 1.0)
 
     # Setup the node so that it starts publishing with updated parameters
     gimbal_ros2_node.setup()
@@ -154,7 +145,7 @@ def test_gimbal_node_gain_values(gimbal_ros2_node, parameter_setter, config_para
     truth_kD = np.ones(len(gimbal_ros2_node.dynamixel_mgr.motor_ids)) * kD
 
     # Pause the leap_node from running so that I can check the actual driver information
-    pause_threads = True
+    suspendable_thread.suspend()
     time.sleep(1.0)
 
     # Check the driver
@@ -162,27 +153,16 @@ def test_gimbal_node_gain_values(gimbal_ros2_node, parameter_setter, config_para
     test_kI = gimbal_ros2_node.dynamixel_mgr.get_kI(gimbal_ros2_node.dynamixel_mgr.motor_ids)
     test_kD = gimbal_ros2_node.dynamixel_mgr.get_kD(gimbal_ros2_node.dynamixel_mgr.motor_ids)
 
-    # Stop the thread prior to assertion
-    stop_threads = True
-    time.sleep(1.0)
-
     # have to convert to ints because thats how it is actually sent to the dynamixels
     assert truth_kP.astype(int).tolist() == test_kP
     assert truth_kI.astype(int).tolist() == test_kI
     assert truth_kD.astype(int).tolist() == test_kD
 
-def test_gimbal_node_start_position(gimbal_ros2_node, parameter_setter, config_params):
-    global stop_threads, pause_threads
-    stop_threads = False
-    pause_threads = False
+def test_gimbal_node_start_position(gimbal_ros2_node_and_thread, parameter_setter, config_params):
+    gimbal_ros2_node, suspendable_thread = gimbal_ros2_node_and_thread
 
-    executor_gimbal_ros2_node = MultiThreadedExecutor()
-    executor_gimbal_ros2_node.add_node(gimbal_ros2_node)
-    thread1 = threading.Thread(target=run_gimbal_node_thread, args=(executor_gimbal_ros2_node,))
-    thread1.start()
-
-    executor_sub_and_client = MultiThreadedExecutor()
-    executor_sub_and_client.add_node(parameter_setter)
+    executor_test = SingleThreadedExecutor()
+    executor_test.add_node(parameter_setter)
 
     # set the initial conditions that you want (parameters must be a DOUBLE array)
     truth_start_pos_deg = [45.0, 45.0] 
@@ -199,7 +179,7 @@ def test_gimbal_node_start_position(gimbal_ros2_node, parameter_setter, config_p
     set_parameter_results = parameter_setter.send_request(SetParameters.Request(parameters=params_to_set))
 
     # Spin subscriber and service to actually execute the service call
-    spin_for_duration(executor_sub_and_client, 1.0)
+    spin_for_duration(executor_test, 1.0)
     print(set_parameter_results)
 
     # Setup the node so that it starts publishing with updated parameters
@@ -207,14 +187,10 @@ def test_gimbal_node_start_position(gimbal_ros2_node, parameter_setter, config_p
     print("GIMBAL NODE SETUP FINISHED!")
     
     # Pause the leap_node from running so that I can check the actual driver information
-    pause_threads = True
+    suspendable_thread.suspend()
     time.sleep(1.0)
     test_start_pos_deg = gimbal_ros2_node.dynamixel_mgr.get_position_deg(gimbal_ros2_node.dynamixel_mgr.motor_ids)
     gimbal_ros2_node.dynamixel_mgr.set_goal_position_deg(gimbal_ros2_node.dynamixel_mgr.motor_ids, np.zeros(len(gimbal_ros2_node.dynamixel_mgr.motor_ids))) # just reset it back to home, not 100% necessary...
-
-    # Stop the thread prior to assertion
-    stop_threads = True
-    time.sleep(1.0)
 
     # Now actually check without the node
     position_comparison = [abs(a - b) for a, b in zip(truth_start_pos_deg, test_start_pos_deg)]
@@ -226,18 +202,11 @@ def test_gimbal_node_start_position(gimbal_ros2_node, parameter_setter, config_p
     # have to convert to ints because thats how it is actually sent to the dynamixels
     assert all(comparison_result)
 
-def test_gimbal_node_min_position(gimbal_ros2_node, parameter_setter, config_params):
-    global stop_threads, pause_threads
-    stop_threads = False
-    pause_threads = False
+def test_gimbal_node_min_position(gimbal_ros2_node_and_thread, parameter_setter, config_params):
+    gimbal_ros2_node, suspendable_thread = gimbal_ros2_node_and_thread
 
-    executor_gimbal_ros2_node = MultiThreadedExecutor()
-    executor_gimbal_ros2_node.add_node(gimbal_ros2_node)
-    thread1 = threading.Thread(target=run_gimbal_node_thread, args=(executor_gimbal_ros2_node,))
-    thread1.start()
-
-    executor_sub_and_client = MultiThreadedExecutor()
-    executor_sub_and_client.add_node(parameter_setter)
+    executor_test = SingleThreadedExecutor()
+    executor_test.add_node(parameter_setter)
 
     # set the initial conditions that you want (parameters must be a DOUBLE array)
     truth_min_pos_deg = [-115.0, -105.0] 
@@ -250,20 +219,16 @@ def test_gimbal_node_min_position(gimbal_ros2_node, parameter_setter, config_par
     set_parameter_results = parameter_setter.send_request(SetParameters.Request(parameters=params_to_set))
 
     # Spin subscriber and service to actually execute the service call
-    spin_for_duration(executor_sub_and_client, 1.0)
+    spin_for_duration(executor_test, 1.0)
     print(set_parameter_results)
 
     # Setup the node so that it starts publishing with updated parameters
     gimbal_ros2_node.setup()
     
     # Pause the leap_node from running so that I can check the actual driver information
-    pause_threads = True
+    suspendable_thread.suspend()
     time.sleep(1.0)
     test_min_pos_deg = gimbal_ros2_node.dynamixel_mgr.get_min_position_deg(gimbal_ros2_node.dynamixel_mgr.motor_ids)
-
-    # Stop the thread prior to assertion
-    stop_threads = True
-    time.sleep(1.0)
 
     # Now actually check without the node
     position_comparison = [abs(a - b) for a, b in zip(truth_min_pos_deg, test_min_pos_deg)]
@@ -276,18 +241,11 @@ def test_gimbal_node_min_position(gimbal_ros2_node, parameter_setter, config_par
     assert all(comparison_result)
 
 
-def test_gimbal_node_max_position(gimbal_ros2_node, parameter_setter, config_params):
-    global stop_threads, pause_threads
-    stop_threads = False
-    pause_threads = False
+def test_gimbal_node_max_position(gimbal_ros2_node_and_thread, parameter_setter, config_params):
+    gimbal_ros2_node, suspendable_thread = gimbal_ros2_node_and_thread
 
-    executor_gimbal_ros2_node = MultiThreadedExecutor()
-    executor_gimbal_ros2_node.add_node(gimbal_ros2_node)
-    thread1 = threading.Thread(target=run_gimbal_node_thread, args=(executor_gimbal_ros2_node,))
-    thread1.start()
-
-    executor_sub_and_client = MultiThreadedExecutor()
-    executor_sub_and_client.add_node(parameter_setter)
+    executor_test = SingleThreadedExecutor()
+    executor_test.add_node(parameter_setter)
 
     # set the initial conditions that you want (parameters must be a DOUBLE array)
     truth_max_pos_deg = [115.0, 105.0] 
@@ -300,21 +258,17 @@ def test_gimbal_node_max_position(gimbal_ros2_node, parameter_setter, config_par
     set_parameter_results = parameter_setter.send_request(SetParameters.Request(parameters=params_to_set))
 
     # Spin subscriber and service to actually execute the service call
-    spin_for_duration(executor_sub_and_client, 1.0)
+    spin_for_duration(executor_test, 1.0)
     print(set_parameter_results)
 
     # Setup the node so that it starts publishing with updated parameters
     gimbal_ros2_node.setup()
     
     # Pause the leap_node from running so that I can check the actual driver information
-    pause_threads = True
+    suspendable_thread.suspend()
     time.sleep(1.0)
     test_max_pos_deg = gimbal_ros2_node.dynamixel_mgr.get_max_position_deg(gimbal_ros2_node.dynamixel_mgr.motor_ids)
     print(f'test_max_pos_deg: {test_max_pos_deg}')
-
-    # Stop the thread prior to assertion
-    stop_threads = True
-    time.sleep(1.0)
 
     # Now actually check without the node
     position_comparison = [abs(a - b) for a, b in zip(truth_max_pos_deg, test_max_pos_deg)]
@@ -326,18 +280,11 @@ def test_gimbal_node_max_position(gimbal_ros2_node, parameter_setter, config_par
     # have to convert to ints because thats how it is actually sent to the dynamixels
     assert all(comparison_result)
 
-def test_gimbal_node_no_device_name(gimbal_ros2_node, parameter_setter, config_params):
-    global stop_threads, pause_threads
-    stop_threads = False
-    pause_threads = False
+def test_gimbal_node_no_device_name(gimbal_ros2_node_and_thread, parameter_setter, config_params):
+    gimbal_ros2_node, _ = gimbal_ros2_node_and_thread
 
-    executor_gimbal_ros2_node = MultiThreadedExecutor()
-    executor_gimbal_ros2_node.add_node(gimbal_ros2_node)
-    thread1 = threading.Thread(target=run_gimbal_node_thread, args=(executor_gimbal_ros2_node,))
-    thread1.start()
-
-    executor_sub_and_client = MultiThreadedExecutor()
-    executor_sub_and_client.add_node(parameter_setter)
+    executor_test = SingleThreadedExecutor()
+    executor_test.add_node(parameter_setter)
 
     # remove the device_name parameter to cause the exception to be raised!
     del config_params["device_name"] 
@@ -349,35 +296,20 @@ def test_gimbal_node_no_device_name(gimbal_ros2_node, parameter_setter, config_p
     set_parameter_results = parameter_setter.send_request(SetParameters.Request(parameters=params_to_set))
 
     # Spin subscriber and service to actually execute the service call
-    spin_for_duration(executor_sub_and_client, 1.0)
+    spin_for_duration(executor_test, 1.0)
 
     # Assert that a ValueError is raised
     with pytest.raises(ValueError, match="Please state the device_name in the configuration file."):
         # Setup the node so that it starts publishing with updated parameters
        gimbal_ros2_node.setup()
 
-    # Pause the leap_node from running so that I can check the actual driver information
-    pause_threads = True
-    time.sleep(1.0)
-
-    # Stop the thread prior to assertion
-    stop_threads = True
-    time.sleep(1.0)
-
     assert True
 
-def test_gimbal_node_no_dynamixel_type(gimbal_ros2_node, parameter_setter, config_params):
-    global stop_threads, pause_threads
-    stop_threads = False
-    pause_threads = False
+def test_gimbal_node_no_dynamixel_type(gimbal_ros2_node_and_thread, parameter_setter, config_params):
+    gimbal_ros2_node, _ = gimbal_ros2_node_and_thread
 
-    executor_gimbal_ros2_node = MultiThreadedExecutor()
-    executor_gimbal_ros2_node.add_node(gimbal_ros2_node)
-    thread1 = threading.Thread(target=run_gimbal_node_thread, args=(executor_gimbal_ros2_node,))
-    thread1.start()
-
-    executor_sub_and_client = MultiThreadedExecutor()
-    executor_sub_and_client.add_node(parameter_setter)
+    executor_test = SingleThreadedExecutor()
+    executor_test.add_node(parameter_setter)
 
     # remove the device_name parameter to cause the exception to be raised!
     del config_params["dynamixel_type"] 
@@ -389,19 +321,11 @@ def test_gimbal_node_no_dynamixel_type(gimbal_ros2_node, parameter_setter, confi
     set_parameter_results = parameter_setter.send_request(SetParameters.Request(parameters=params_to_set))
 
     # Spin subscriber and service to actually execute the service call
-    spin_for_duration(executor_sub_and_client, 1.0)
+    spin_for_duration(executor_test, 1.0)
 
     # Assert that a ValueError is raised
     with pytest.raises(ValueError, match="Please state the dynamixel_type in the configuration file."):
         # Setup the node so that it starts publishing with updated parameters
         gimbal_ros2_node.setup()
-
-    # Pause the leap_node from running so that I can check the actual driver information
-    pause_threads = True
-    time.sleep(1.0)
-
-    # Stop the thread prior to assertion
-    stop_threads = True
-    time.sleep(1.0)
 
     assert True
