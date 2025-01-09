@@ -1,3 +1,6 @@
 [submodule "dynamixel_driver"]
 	path = dynamixel_driver
 	url = git@github.com:BiomechatronicsLab/dynamixel_driver.git
+[submodule "test/test_utilities"]
+	path = test/test_utilities
+	url = git@github.com:BiomechatronicsLab/test_utilities.git
