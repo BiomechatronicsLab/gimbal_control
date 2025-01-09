@@ -61,7 +61,7 @@ class GimbalNode(Node):
                 self.dynamixel_mgr = XL430W250Manager(motor_ids, self.baud_rate, self.device_name)
         except:
             raise ValueError(f"Double check config for dynamixel setting")
-
+        
         # Create publisher
         self.publisher = self.create_publisher(
             JointState, self.joint_feedback_topic, 10

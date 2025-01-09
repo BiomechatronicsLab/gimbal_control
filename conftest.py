@@ -3,16 +3,17 @@ import os
 import yaml
 from ament_index_python.packages import get_package_share_directory
 from dynamixel_driver.XL430_W250_manager import XL430W250Manager
+import rclpy
 
 config_directory = os.path.join(get_package_share_directory("gimbal_ros2"), "config")
 config_file_path = os.path.join(config_directory, "test_params.yaml")
 
-@pytest.fixture(scope="function")
+@pytest.fixture(autouse=True, scope="session")
 def config_params():
     print(f"Loading configuration from: {config_file_path}")
 
     with open(config_file_path, "r") as file:
-        return yaml.safe_load(file)
+        yield yaml.safe_load(file)
     
 @pytest.fixture(scope="function")
 def dynamixel_manager(config_params):
@@ -29,3 +30,11 @@ def dynamixel_manager(config_params):
     except:
         raise ValueError(f"Double check config for dynamixel setting")
 
+@pytest.fixture(autouse=True, scope="session")
+def initialize_rclpy():
+    # Set an arbitrary ROS_DOMAIN_ID so that the test is performed without inteference
+    os.environ["ROS_DOMAIN_ID"] = "42"
+
+    rclpy.init()
+    yield
+    rclpy.shutdown()

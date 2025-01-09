@@ -3,9 +3,6 @@ import pytest
 import launch_testing
 import launch_testing.markers
 
-from rcl_interfaces.srv import GetParameters
-from rcl_interfaces.msg import ParameterType
-
 import os
 import launch_ros
 import rclpy
@@ -64,15 +61,6 @@ class GimbalPositionChecker(Node):
         start_time = time.time()
         while time.time() - start_time < duration_sec:
             rclpy.spin_once(self, timeout_sec=0.1)  # Adjust timeout_sec for finer granularity if needed
-
-@pytest.fixture(autouse=True, scope="session")
-def initialize_rclpy():
-    # Set an arbitrary ROS_DOMAIN_ID so that the test is performed without inteference
-    os.environ['ROS_DOMAIN_ID'] = '42'
-
-    rclpy.init()
-    yield
-    rclpy.shutdown()
 
 @pytest.fixture
 def gimbal_position_checker(config_params):

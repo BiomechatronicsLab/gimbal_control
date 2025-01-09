@@ -1,62 +1,22 @@
 #!/usr/bin/env python3
 import pytest
-import os
 from sensor_msgs.msg import JointState
-import rclpy
 import time
 from rclpy.node import Node
 import rclpy
-from rcl_interfaces.srv import SetParameters
-from rcl_interfaces.msg import Parameter, ParameterValue, SetParametersResult
 from gimbal_ros2.gimbal_node import GimbalNode
-from gimbal_ros2.suspendable_thread import SuspendableThread
+from test_utilities.suspendable_thread import SuspendableThread 
+from test_utilities.parameter_utility import ParameterSetter
 
 from rcl_interfaces.msg import ParameterType
 from rclpy.executors import SingleThreadedExecutor
 import numpy as np
 
 node_name = "test_gimbal_node" 
-class ParameterSetter(Node):
-    def __init__(self):
-        super().__init__('parameter_setter')
-        
-        self.client = self.create_client(
-            SetParameters,
-            f'/{node_name}/set_parameters'
-        )
-
-        self.req = SetParameters.Request()
-
-    def wait_for_service_ready(self):
-        timeout = 5.0  # Total timeout in seconds
-        start_time = time.time()
-
-        while not self.client.wait_for_service(timeout_sec=1.0):
-            self.get_logger().warn('Service not available, retrying...')
-            if time.time() - start_time > timeout:
-                self.get_logger().error(f"Service {self.client.srv_name} not available after {timeout} seconds.")
-                raise TimeoutError("Service connection timed out.")
-
-        self.get_logger().info('Service is available now.')
-
-    def send_request(self, req):
-        self.wait_for_service_ready()
-        self.future = self.client.call_async(req)
-        rclpy.spin_until_future_complete(self, self.future)
-        return self.future.result().results
-
-@pytest.fixture(autouse=True, scope="session")
-def initialize_rclpy():
-    # Set an arbitrary ROS_DOMAIN_ID so that the test is performed without inteference
-    os.environ["ROS_DOMAIN_ID"] = "42"
-
-    rclpy.init()
-    yield
-    rclpy.shutdown()
 
 @pytest.fixture
 def parameter_setter():
-    parameter_setter = ParameterSetter()
+    parameter_setter = ParameterSetter(node_name)
     yield parameter_setter
     parameter_setter.destroy_node()
 
@@ -83,34 +43,6 @@ def spin_for_duration(executor, duration_sec):
 def spin_node(executor):
     executor.spin_once(timeout_sec=0.01)
 
-def set_new_params(config_params, param_names_to_check):
-    params_to_set = [] # array of "sudo launch file params"
-    for param_name in param_names_to_check:
-        parameter_value = config_params[param_name]
-
-        # creation of a new parameter (based off the launch file)
-        new_param = Parameter()
-        new_param.name = param_name
-
-        if type(parameter_value) == bool:
-            new_param.value = ParameterValue(type=ParameterType.PARAMETER_BOOL, bool_value=parameter_value)
-        elif type(parameter_value) == int:
-            new_param.value = ParameterValue(type=ParameterType.PARAMETER_INTEGER, integer_value=parameter_value)
-        elif type(parameter_value) == float:
-            new_param.value = ParameterValue(type=ParameterType.PARAMETER_DOUBLE, double_value=parameter_value)
-        elif type(parameter_value) == str:
-            new_param.value = ParameterValue(type=ParameterType.PARAMETER_STRING, string_value=parameter_value)
-        elif type(parameter_value) == list and all(isinstance(x, bool) for x in parameter_value):
-            new_param.value = ParameterValue(type=ParameterType.PARAMETER_BOOL_ARRAY, bool_array_value=parameter_value)
-        elif type(parameter_value) == list and all(isinstance(x, int) for x in parameter_value):
-            new_param.value = ParameterValue(type=ParameterType.PARAMETER_INTEGER_ARRAY, integer_array_value=parameter_value)
-        elif type(parameter_value) == list and all(isinstance(x, float) for x in parameter_value):
-            new_param.value = ParameterValue(type=ParameterType.PARAMETER_DOUBLE_ARRAY, double_array_value=parameter_value)
-        elif type(parameter_value) == list and all(isinstance(x, str) for x in parameter_value):
-            new_param.value = ParameterValue(type=ParameterType.PARAMETER_STRING_ARRAY, string_array_value=parameter_value)
-        params_to_set.append(new_param)
-    return params_to_set
-
 def test_gimbal_node_gain_values(gimbal_ros2_node_and_thread, parameter_setter, config_params):
 
     gimbal_ros2_node, suspendable_thread = gimbal_ros2_node_and_thread
@@ -127,11 +59,8 @@ def test_gimbal_node_gain_values(gimbal_ros2_node_and_thread, parameter_setter, 
     config_params["kI"] = kI
     config_params["kD"] = kD
 
-    param_names_to_check = list(config_params.keys())
-    params_to_set = set_new_params(config_params, param_names_to_check)
-
-    # Set the parameters using the server
-    set_parameter_results = parameter_setter.send_request(SetParameters.Request(parameters=params_to_set))
+    config_param_keys = list(config_params.keys())
+    parameter_setter.set_params(config_params, config_param_keys)
 
     # Spin subscriber and service to actually execute the service call
     spin_for_duration(executor_test, 1.0)
@@ -172,15 +101,11 @@ def test_gimbal_node_start_position(gimbal_ros2_node_and_thread, parameter_sette
     config_params["min_position_deg"] = [-90.0, -90.0]
     config_params["max_position_deg"] = [90.0, 90.0]
 
-    param_names_to_check = list(config_params.keys())
-    params_to_set = set_new_params(config_params, param_names_to_check)
-
-    # Set the parameters using the server
-    set_parameter_results = parameter_setter.send_request(SetParameters.Request(parameters=params_to_set))
+    config_param_keys = list(config_params.keys())
+    parameter_setter.set_params(config_params, config_param_keys)
 
     # Spin subscriber and service to actually execute the service call
     spin_for_duration(executor_test, 1.0)
-    print(set_parameter_results)
 
     # Setup the node so that it starts publishing with updated parameters
     gimbal_ros2_node.setup()
@@ -212,15 +137,11 @@ def test_gimbal_node_min_position(gimbal_ros2_node_and_thread, parameter_setter,
     truth_min_pos_deg = [-115.0, -105.0] 
     config_params["min_position_deg"] = truth_min_pos_deg
 
-    param_names_to_check = list(config_params.keys())
-    params_to_set = set_new_params(config_params, param_names_to_check)
-
-    # Set the parameters using the server
-    set_parameter_results = parameter_setter.send_request(SetParameters.Request(parameters=params_to_set))
+    config_param_keys = list(config_params.keys())
+    parameter_setter.set_params(config_params, config_param_keys)
 
     # Spin subscriber and service to actually execute the service call
     spin_for_duration(executor_test, 1.0)
-    print(set_parameter_results)
 
     # Setup the node so that it starts publishing with updated parameters
     gimbal_ros2_node.setup()
@@ -251,15 +172,11 @@ def test_gimbal_node_max_position(gimbal_ros2_node_and_thread, parameter_setter,
     truth_max_pos_deg = [115.0, 105.0] 
     config_params["max_position_deg"] = truth_max_pos_deg
 
-    param_names_to_check = list(config_params.keys())
-    params_to_set = set_new_params(config_params, param_names_to_check)
-
-    # Set the parameters using the server
-    set_parameter_results = parameter_setter.send_request(SetParameters.Request(parameters=params_to_set))
+    config_param_keys = list(config_params.keys())
+    parameter_setter.set_params(config_params, config_param_keys)
 
     # Spin subscriber and service to actually execute the service call
     spin_for_duration(executor_test, 1.0)
-    print(set_parameter_results)
 
     # Setup the node so that it starts publishing with updated parameters
     gimbal_ros2_node.setup()
@@ -289,11 +206,8 @@ def test_gimbal_node_no_device_name(gimbal_ros2_node_and_thread, parameter_sette
     # remove the device_name parameter to cause the exception to be raised!
     del config_params["device_name"] 
 
-    param_names_to_check = list(config_params.keys())
-    params_to_set = set_new_params(config_params, param_names_to_check)
-
-    # Set the parameters using the server
-    set_parameter_results = parameter_setter.send_request(SetParameters.Request(parameters=params_to_set))
+    config_param_keys = list(config_params.keys())
+    parameter_setter.set_params(config_params, config_param_keys)
 
     # Spin subscriber and service to actually execute the service call
     spin_for_duration(executor_test, 1.0)
@@ -314,11 +228,8 @@ def test_gimbal_node_no_dynamixel_type(gimbal_ros2_node_and_thread, parameter_se
     # remove the device_name parameter to cause the exception to be raised!
     del config_params["dynamixel_type"] 
 
-    param_names_to_check = list(config_params.keys())
-    params_to_set = set_new_params(config_params, param_names_to_check)
-
-    # Set the parameters using the server
-    set_parameter_results = parameter_setter.send_request(SetParameters.Request(parameters=params_to_set))
+    config_param_keys = list(config_params.keys())
+    parameter_setter.set_params(config_params, config_param_keys)
 
     # Spin subscriber and service to actually execute the service call
     spin_for_duration(executor_test, 1.0)

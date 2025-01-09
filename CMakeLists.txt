@@ -9,6 +9,7 @@ find_package(rosidl_default_generators REQUIRED)
 find_package(ament_cmake_python REQUIRED)
 
 ament_python_install_package(dynamixel_driver) # Install dynamixel_driver package
+ament_python_install_package(test_utilities PACKAGE_DIR test/test_utilities)
 ament_python_install_package(${PROJECT_NAME}) # correctly install leap_ros2 package
 
 #############
