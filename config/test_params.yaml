@@ -4,7 +4,7 @@ start_pos_deg: [0.0, 0.0]
 min_position_deg: [-100.0, -100.0]
 max_position_deg: [100.0, 100.0]
 kP: 500
-kI: 0
+kI: 10
 kD: 200
 joint_feedback_topic: /gimbal/peripherals/feedback_joint_states
 joint_command_topic: /gimbal/peripherals/command_joint_states

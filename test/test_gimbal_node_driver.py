@@ -86,6 +86,7 @@ def test_gimbal_node_gain_values(gimbal_ros2_node_and_thread, parameter_setter, 
     assert truth_kP.astype(int).tolist() == test_kP
     assert truth_kI.astype(int).tolist() == test_kI
     assert truth_kD.astype(int).tolist() == test_kD
+    executor_test.shutdown()
 
 def test_gimbal_node_start_position(gimbal_ros2_node_and_thread, parameter_setter, config_params):
     gimbal_ros2_node, suspendable_thread = gimbal_ros2_node_and_thread
@@ -126,6 +127,7 @@ def test_gimbal_node_start_position(gimbal_ros2_node_and_thread, parameter_sette
 
     # have to convert to ints because thats how it is actually sent to the dynamixels
     assert all(comparison_result)
+    executor_test.shutdown()
 
 def test_gimbal_node_min_position(gimbal_ros2_node_and_thread, parameter_setter, config_params):
     gimbal_ros2_node, suspendable_thread = gimbal_ros2_node_and_thread
@@ -160,7 +162,7 @@ def test_gimbal_node_min_position(gimbal_ros2_node_and_thread, parameter_setter,
 
     # have to convert to ints because thats how it is actually sent to the dynamixels
     assert all(comparison_result)
-
+    executor_test.shutdown()
 
 def test_gimbal_node_max_position(gimbal_ros2_node_and_thread, parameter_setter, config_params):
     gimbal_ros2_node, suspendable_thread = gimbal_ros2_node_and_thread
@@ -196,6 +198,7 @@ def test_gimbal_node_max_position(gimbal_ros2_node_and_thread, parameter_setter,
 
     # have to convert to ints because thats how it is actually sent to the dynamixels
     assert all(comparison_result)
+    executor_test.shutdown()
 
 def test_gimbal_node_no_device_name(gimbal_ros2_node_and_thread, parameter_setter, config_params):
     gimbal_ros2_node, _ = gimbal_ros2_node_and_thread
@@ -218,6 +221,7 @@ def test_gimbal_node_no_device_name(gimbal_ros2_node_and_thread, parameter_sette
        gimbal_ros2_node.setup()
 
     assert True
+    executor_test.shutdown()
 
 def test_gimbal_node_no_dynamixel_type(gimbal_ros2_node_and_thread, parameter_setter, config_params):
     gimbal_ros2_node, _ = gimbal_ros2_node_and_thread
@@ -240,3 +244,4 @@ def test_gimbal_node_no_dynamixel_type(gimbal_ros2_node_and_thread, parameter_se
         gimbal_ros2_node.setup()
 
     assert True
+    executor_test.shutdown()

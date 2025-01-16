@@ -42,4 +42,4 @@ def test_topic_exists(config_params, topic_checker, topic_name_str):
     """Checks if a topic is being published or subscribed to"""
     topic_to_check = config_params[topic_name_str]
     rclpy.spin_once(topic_checker, timeout_sec=3.0)
-    topic_checker(topic_to_check)
+    topic_checker.topic_exists(topic_to_check)

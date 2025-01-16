@@ -36,6 +36,7 @@ class GimbalNode(Node):
         self.joint_feedback_topic = self.get_parameter("joint_feedback_topic").get_parameter_value().string_value
         self.baud_rate = self.get_parameter("baud_rate").get_parameter_value().integer_value
         self.device_name = self.get_parameter("device_name").get_parameter_value().string_value
+
         if self.device_name == "":
             raise ValueError(
                 "Please state the device_name in the configuration file."

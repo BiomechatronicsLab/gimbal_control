@@ -8,7 +8,7 @@ import rclpy
 config_directory = os.path.join(get_package_share_directory("gimbal_ros2"), "config")
 config_file_path = os.path.join(config_directory, "test_params.yaml")
 
-@pytest.fixture(autouse=True, scope="session")
+@pytest.fixture(autouse=True, scope="function")
 def config_params():
     print(f"Loading configuration from: {config_file_path}")
 
