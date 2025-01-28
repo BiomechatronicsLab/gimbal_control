@@ -16,6 +16,12 @@ ament_python_install_package(${PROJECT_NAME}) # correctly install leap_ros2 pack
 ## Install ##
 #############
 
+# Install Python scripts in the scripts directory
+file(GLOB SCRIPT_FILES scripts/*.py)
+install(PROGRAMS ${SCRIPT_FILES}
+  DESTINATION lib/${PROJECT_NAME}
+)
+
 file(GLOB SCRIPT_FILES gimbal_ros2/*.py)
 install(PROGRAMS ${SCRIPT_FILES}
   DESTINATION lib/${PROJECT_NAME}

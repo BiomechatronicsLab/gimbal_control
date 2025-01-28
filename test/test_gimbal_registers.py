@@ -27,7 +27,7 @@ def command_and_check_position(dynamixel_manager, truth_goal_position_deg, toler
 def test_kP(dynamixel_manager):
     kP = 600
     truth_kP = np.ones(len(dynamixel_manager.motor_ids)) * kP
-    dynamixel_manager.set_operating_mode(dynamixel_manager.motor_ids, np.ones(len(dynamixel_manager.motor_ids)) * position_mode_enum)
+    dynamixel_manager.set_position_mode(dynamixel_manager.motor_ids)
     dynamixel_manager.set_kP(dynamixel_manager.motor_ids, truth_kP)
     test_kP = dynamixel_manager.get_kP(dynamixel_manager.motor_ids)
     assert truth_kP.tolist() == test_kP, "kP values not set correctly"
@@ -36,7 +36,7 @@ def test_kP(dynamixel_manager):
 def test_kI(dynamixel_manager):
     kI = 0
     truth_kI = np.ones(len(dynamixel_manager.motor_ids)) * kI
-    dynamixel_manager.set_operating_mode(dynamixel_manager.motor_ids, np.ones(len(dynamixel_manager.motor_ids)) * position_mode_enum)
+    dynamixel_manager.set_position_mode(dynamixel_manager.motor_ids)
     dynamixel_manager.set_kI(dynamixel_manager.motor_ids, truth_kI)
     test_kI = dynamixel_manager.get_kI(dynamixel_manager.motor_ids)
     assert truth_kI.tolist() == test_kI, "kI values not set correctly"
@@ -45,7 +45,7 @@ def test_kI(dynamixel_manager):
 def test_kD(dynamixel_manager):
     kD = 200
     truth_kD = np.ones(len(dynamixel_manager.motor_ids)) * kD
-    dynamixel_manager.set_operating_mode(dynamixel_manager.motor_ids, np.ones(len(dynamixel_manager.motor_ids)) * position_mode_enum)
+    dynamixel_manager.set_position_mode(dynamixel_manager.motor_ids)
     dynamixel_manager.set_kD(dynamixel_manager.motor_ids, truth_kD)
     test_kD = dynamixel_manager.get_kD(dynamixel_manager.motor_ids)
     assert truth_kD.tolist() == test_kD, "kD values not set correctly"
@@ -61,7 +61,7 @@ def test_baud_rate(dynamixel_manager):
 
 def test_position_mode(dynamixel_manager):
     truth_operating_mode = np.ones(len(dynamixel_manager.motor_ids)) * position_mode_enum # Position Mode
-    dynamixel_manager.set_operating_mode(dynamixel_manager.motor_ids, truth_operating_mode)
+    dynamixel_manager.set_position_mode(dynamixel_manager.motor_ids)
     test_operating_mode = dynamixel_manager.get_operating_mode(dynamixel_manager.motor_ids)
     assert truth_operating_mode.tolist() == test_operating_mode
     time.sleep(0.5)
@@ -74,19 +74,19 @@ def test_velocity(dynamixel_manager):
 
 def test_torque_enable(dynamixel_manager):
     truth_torque_enable = np.zeros(len(dynamixel_manager.motor_ids))
-    dynamixel_manager.set_torque_enable(dynamixel_manager.motor_ids, truth_torque_enable)
+    dynamixel_manager.set_torque_disable(dynamixel_manager.motor_ids)
     test_torque_enable = dynamixel_manager.get_torque_enable(dynamixel_manager.motor_ids)
     assert truth_torque_enable.tolist() == test_torque_enable # TORQUE OFF
 
     truth_torque_enable = np.ones(len(dynamixel_manager.motor_ids))
-    dynamixel_manager.set_torque_enable(dynamixel_manager.motor_ids, truth_torque_enable)
+    dynamixel_manager.set_torque_enable(dynamixel_manager.motor_ids)
     test_torque_enable = dynamixel_manager.get_torque_enable(dynamixel_manager.motor_ids)
     assert truth_torque_enable.tolist() == test_torque_enable # TORQUE ON
     time.sleep(0.5)
 
 def test_max_position(dynamixel_manager):
     max_position_limit = 80.0
-    dynamixel_manager.set_operating_mode(dynamixel_manager.motor_ids, np.ones(len(dynamixel_manager.motor_ids)) * position_mode_enum)
+    dynamixel_manager.set_position_mode(dynamixel_manager.motor_ids)
     truth_max_position = np.ones(len(dynamixel_manager.motor_ids)) * max_position_limit
     dynamixel_manager.set_max_position_deg(dynamixel_manager.motor_ids, truth_max_position)
     test_max_position = dynamixel_manager.get_max_position_deg(dynamixel_manager.motor_ids)
@@ -95,7 +95,7 @@ def test_max_position(dynamixel_manager):
     assert all([abs(truth_val - test_val) <= 1.0 for truth_val, test_val in zip(truth_max_position, test_max_position)]) 
 
     # Try to command above the max limits (the system should NOT move at all, let alone above the limits)
-    dynamixel_manager.set_torque_enable(dynamixel_manager.motor_ids, np.ones(len(dynamixel_manager.motor_ids)))
+    dynamixel_manager.set_torque_enable(dynamixel_manager.motor_ids)
     truth_goal_position_deg = np.ones(len(dynamixel_manager.motor_ids)) * max_position_limit + 5
     dynamixel_manager.set_goal_position_deg(dynamixel_manager.motor_ids, np.zeros(len(dynamixel_manager.motor_ids))) # move to home first
     time.sleep(0.5)
@@ -106,7 +106,7 @@ def test_max_position(dynamixel_manager):
 
 def test_min_position(dynamixel_manager):
     min_position_limit = -80.0
-    dynamixel_manager.set_operating_mode(dynamixel_manager.motor_ids, np.ones(len(dynamixel_manager.motor_ids)) * position_mode_enum)
+    dynamixel_manager.set_position_mode(dynamixel_manager.motor_ids)
     truth_min_position = np.ones(len(dynamixel_manager.motor_ids)) * min_position_limit
     dynamixel_manager.set_min_position_deg(dynamixel_manager.motor_ids, truth_min_position)
     test_min_position = dynamixel_manager.get_min_position_deg(dynamixel_manager.motor_ids)
@@ -115,7 +115,7 @@ def test_min_position(dynamixel_manager):
     assert all([abs(truth_val - test_val) <= 1.0 for truth_val, test_val in zip(truth_min_position, test_min_position)])
 
     # Try to command above the max limits (the system should NOT move at all, let alone above the limits)
-    dynamixel_manager.set_torque_enable(dynamixel_manager.motor_ids, np.ones(len(dynamixel_manager.motor_ids)))
+    dynamixel_manager.set_torque_enable(dynamixel_manager.motor_ids)
     truth_goal_position_deg = np.ones(len(dynamixel_manager.motor_ids)) * min_position_limit - 5
     dynamixel_manager.set_goal_position_deg(dynamixel_manager.motor_ids, np.zeros(len(dynamixel_manager.motor_ids))) # move to home first
     time.sleep(0.5)
@@ -146,7 +146,7 @@ def test_position(dynamixel_manager, truth_goal_position_deg):
     kD_gains = np.ones(len(dynamixel_manager.motor_ids)) * 200
     tolerance_deg = 5.0 # how much allowable error there can be (was never given any requirements...)
 
-    dynamixel_manager.set_operating_mode(dynamixel_manager.motor_ids, np.ones(len(dynamixel_manager.motor_ids)) * position_mode_enum)
+    dynamixel_manager.set_position_mode(dynamixel_manager.motor_ids)
 
     # SET MIN AND MAX LIMITS!
     truth_min_position = np.ones(len(dynamixel_manager.motor_ids)) * -100.0
@@ -155,7 +155,7 @@ def test_position(dynamixel_manager, truth_goal_position_deg):
     dynamixel_manager.set_max_position_deg(dynamixel_manager.motor_ids, truth_max_position)
 
     # Set Torques
-    dynamixel_manager.set_torque_enable(dynamixel_manager.motor_ids, np.ones(len(dynamixel_manager.motor_ids)))
+    dynamixel_manager.set_torque_enable(dynamixel_manager.motor_ids)
     dynamixel_manager.initialize_gains(dynamixel_manager.motor_ids, kP_gains, kI_gains, kD_gains)
 
     # Command Position!

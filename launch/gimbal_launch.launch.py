@@ -27,7 +27,7 @@ def launch_setup(context, *args, **kwargs):
     return [
         Node(
             package='gimbal_ros2',
-            executable='gimbal_node.py',
+            executable='gimbal_driver.py',
             name='gimbal_node',
             output='screen',
             emulate_tty=True,

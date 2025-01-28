@@ -27,7 +27,7 @@ def launch_gimbal_ros2_node(config_params):
     return LaunchDescription([
         launch_ros.actions.Node(
             package='gimbal_ros2',  #
-            executable='gimbal_node.py',  
+            executable='gimbal_driver.py',  
             name=node_name,
             output='screen',
             parameters=[config_params]

@@ -1,14 +1,10 @@
 #!/usr/bin/env python3
-import rclpy
 from rclpy.node import Node
 import rclpy.logging
 from dynamixel_driver.XL430_W250_manager import XL430W250Manager
 from sensor_msgs.msg import JointState
 import numpy as np
 import time
-
-# TODO: I don't love this because you have to set your position enums in the leaphand node, when thats a driver specific implementation. TBD what to do.
-POSITION_MODE_ENUM = 3
 
 class GimbalNode(Node):
     def __init__(self, test_flag=False, node_name="gimbal_node"):
@@ -75,11 +71,11 @@ class GimbalNode(Node):
 
         # Initialize gains and operating mode
         # Currently operating mode is only set to position and cannot be changed (TBD!)
-        self.dynamixel_mgr.set_torque_enable(self.dynamixel_mgr.motor_ids, np.zeros(len(self.dynamixel_mgr.motor_ids))) # Disable torques just in case
-        self.dynamixel_mgr.set_operating_mode(self.dynamixel_mgr.motor_ids, np.ones(len(self.dynamixel_mgr.motor_ids)) * POSITION_MODE_ENUM)
+        self.dynamixel_mgr.set_torque_disable(self.dynamixel_mgr.motor_ids) # Disable torques just in case
+        self.dynamixel_mgr.set_position_mode(self.dynamixel_mgr.motor_ids)
         self.dynamixel_mgr.set_min_position_deg(self.dynamixel_mgr.motor_ids, self.min_position_deg)
         self.dynamixel_mgr.set_max_position_deg(self.dynamixel_mgr.motor_ids, self.max_position_deg)
-        self.dynamixel_mgr.set_torque_enable(self.dynamixel_mgr.motor_ids, np.ones(len(self.dynamixel_mgr.motor_ids))) # Enable torques
+        self.dynamixel_mgr.set_torque_enable(self.dynamixel_mgr.motor_ids) # Enable torques
         self.initialize_gains()
 
         # Set initial position
@@ -139,15 +135,3 @@ class GimbalNode(Node):
 
         except Exception as e:
             self.get_logger().error(f"Error reading and publishing data: {str(e)}")
-
-def main(args=None): 
-    rclpy.init(args=args)
-    gimbal_driver = GimbalNode()
-    rclpy.spin(gimbal_driver)
-    gimbal_driver.destroy_node()
-    rclpy.shutdown()
-
-if __name__ == "__main__":
-    main()
-
-
